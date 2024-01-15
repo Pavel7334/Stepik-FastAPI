@@ -2,8 +2,7 @@ from fastapi import APIRouter
 
 router = APIRouter(
     prefix="/tasks",
-    tags=["Глава chapter_3:"
-          "Часть chapter_3.1"]
+    tags=["Глава chapter_3:"]
 )
 
 

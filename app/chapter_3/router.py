@@ -218,54 +218,144 @@ router = APIRouter(
 
 #                                   Обработка запросов и их проверка
 
-from typing import Optional
+# from typing import Optional
+#
+# sample_product_1 = {
+#     "product_id": 123,
+#     "name": "Smartphone",
+#     "category": "Electronics",
+#     "price": 599.99
+# }
+#
+# sample_product_2 = {
+#     "product_id": 456,
+#     "name": "Phone Case",
+#     "category": "Accessories",
+#     "price": 19.99
+# }
+#
+# sample_product_3 = {
+#     "product_id": 789,
+#     "name": "Iphone",
+#     "category": "Electronics",
+#     "price": 1299.99
+# }
+#
+# sample_product_4 = {
+#     "product_id": 101,
+#     "name": "Headphones",
+#     "category": "Accessories",
+#     "price": 99.99
+# }
+#
+# sample_product_5 = {
+#     "product_id": 202,
+#     "name": "Smartwatch",
+#     "category": "Electronics",
+#     "price": 299.99
+# }
+#
+# sample_products = [sample_product_1, sample_product_2, sample_product_3, sample_product_4, sample_product_5]
+#
+#
+# @router.get('/product/{product_id}')
+# async def get_product(product_id: int):
+#     result = [item for item in sample_products if product_id == item['product_id']]
+#     if result:
+#         return result
+#     return {'message': 'Product not found'}
+#
+#
+# @router.get('/products/search')
+# async def product_search(keyword: str, category: Optional[str] = None, limit: Optional[int] = 10):
+#     return [i for i in sample_products if keyword in i['name'] and (not category or category in i['category'])][:limit]
 
-sample_product_1 = {
-    "product_id": 123,
-    "name": "Smartphone",
-    "category": "Electronics",
-    "price": 599.99
-}
-
-sample_product_2 = {
-    "product_id": 456,
-    "name": "Phone Case",
-    "category": "Accessories",
-    "price": 19.99
-}
-
-sample_product_3 = {
-    "product_id": 789,
-    "name": "Iphone",
-    "category": "Electronics",
-    "price": 1299.99
-}
-
-sample_product_4 = {
-    "product_id": 101,
-    "name": "Headphones",
-    "category": "Accessories",
-    "price": 99.99
-}
-
-sample_product_5 = {
-    "product_id": 202,
-    "name": "Smartwatch",
-    "category": "Electronics",
-    "price": 299.99
-}
-
-sample_products = [sample_product_1, sample_product_2, sample_product_3, sample_product_4, sample_product_5]
 
 
-@router.get('/product/{product_id}')
-async def get_product(product_id: int):
-    result = [item for item in sample_products if product_id == item['product_id']]
-    if result:
-        return result
-    return {'message': 'Product not found'}
+#                                                   3.2
+
+#                       Дополнительные типы данных, асинхронность и параметры Cookie
+
+# Фоновые задачи в FastAPI
+
+"""FastAPI также поддерживает фоновые задачи, которые представляют собой функции, выполняемые после отправки ответа 
+клиенту. Фоновые задачи полезны для обработки задач, которые не должны блокировать основной цикл запроса-ответа, таких 
+как отправка электронных писем, обновление аналитики или выполнение дополнительной неблокирующей обработки.
+Чтобы использовать фоновые задачи в FastAPI, вы можете определить функцию фоновой задачи (с использованием класса 
+BackgroundTasks) и включить ее в качестве параметра в обработчик маршрута."""
+
+# from fastapi import BackgroundTasks
+#
+#
+# def write_notification(email: str, message=""):
+#     with open("log.txt", mode="w") as email_file:
+#         content = f"notification for {email}: {message}"
+#         email_file.write(content)
+#
+#
+# @router.post("/send-notification/{email}")
+# async def send_notification(email: str, background_tasks: BackgroundTasks):
+#     background_tasks.add_task(write_notification, email, message="some notification")
+#     return {"message": "Notification sent in the background"}
 
 
-@router.get('/products/search')
-async def product_search(keyword: str, category: Optional[str] = None, limit: Optional[int] = 10):
-    return [i for i in sample_products if keyword in i['name'] and (not category or category in i['category'])][:limit]
+# Параметры Cookie
+
+"""Вы можете задать параметры Cookie таким же способом, как Query и Path параметры.
+
+FastAPI поддерживает три типа файлов cookie:
+
+а) Обычные файлы cookie: Это стандартные файлы cookie, которые хранятся на стороне клиента и отправляются обратно на 
+
+сервер при каждом запросе. Обычные файлы cookie широко используются для различных целей, таких как управление сеансами 
+
+и пользовательскими настройками.
+
+б) Защищенные файлы cookie: Защищенные файлы cookie - это зашифрованные файлы cookie, которые обеспечивают 
+
+дополнительный уровень безопасности. Под защищенными куками мы имеем ввиду куки, в которых установлен флаг Secure, 
+
+который говорит браузеру, что эти куки можно передавать только по SSL-соединению.
+
+Примечание: рекомендуем прочитать про XSS-атаки, и дополнительную защиту куков при помощи установки флага HttpOnly, 
+
+чтобы гарантировать, что данные файлов cookie остаются конфиденциальными и не могут быть использованы злоумышленниками 
+
+с использованием внедрения вредоносного Javascript'а на сайтах.
+
+c) Подписанные файлы cookie: Подписанные файлы cookie - это файлы cookie, которые содержат подпись для проверки их 
+
+подлинности. Они гарантируют, что данные cookie-файлов не были изменены клиентом с тех пор, как они были установлены 
+
+сервером.
+
+Для доступа к кукам сначала импортируйте класс Cookie из fastapi. Затем объявляйте параметры cookie, используя ту же 
+
+структуру, что и с Path и Query."""
+
+# from fastapi import Cookie, FastAPI
+#
+# app = FastAPI()
+#
+#
+# @app.get("/items/")
+# async def read_items(ads_id: str | None = Cookie(default=None)):
+#     return {"ads_id": ads_id}
+
+# Доступ к файлам cookie
+
+"""FastAPI упрощает доступ к файлам cookie в запросе. Вы можете извлекать данные cookie и работать с ними в 
+
+своих обработчиках маршрутов точно так же, как с любыми другими данными.
+
+Для получения куки на сервере применяется класс fastapi.Cookie"""
+
+# from fastapi import FastAPI, Cookie
+#
+# app = FastAPI()
+#
+#
+# @app.get("/")
+# def root(last_visit=Cookie()):
+#     return {"last visit": last_visit}
+

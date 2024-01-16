@@ -5,7 +5,6 @@ router = APIRouter(
     tags=["Глава chapter_3:"]
 )
 
-
 # from fastapi.responses import FileResponse
 #
 # app = FastAPI()
@@ -271,10 +270,10 @@ router = APIRouter(
 #     return [i for i in sample_products if keyword in i['name'] and (not category or category in i['category'])][:limit]
 
 
-
 #                                                   3.2
 
 #                       Дополнительные типы данных, асинхронность и параметры Cookie
+
 
 # Фоновые задачи в FastAPI
 
@@ -342,6 +341,7 @@ c) Подписанные файлы cookie: Подписанные файлы c
 # async def read_items(ads_id: str | None = Cookie(default=None)):
 #     return {"ads_id": ads_id}
 
+
 # Доступ к файлам cookie
 
 """FastAPI упрощает доступ к файлам cookie в запросе. Вы можете извлекать данные cookie и работать с ними в 
@@ -359,3 +359,93 @@ c) Подписанные файлы cookie: Подписанные файлы c
 # def root(last_visit=Cookie()):
 #     return {"last visit": last_visit}
 
+
+# Установка файлов cookie Установка файлов cookie
+
+"""В FastAPI вы можете установить файлы cookie в ответе, используя метод `set_cookie` в параметре Response. Этот метод 
+
+позволяет вам определить имя файла cookie, значение и дополнительные параметры, такие как домен, путь, срок действия и 
+
+параметры безопасности."""
+
+# from fastapi import FastAPI, Response
+# from datetime import datetime
+#
+# # app = FastAPI()
+#
+#
+# @router.get("/")
+# def root(response: Response):
+#     now = datetime.now()  # получаем текущую дату и время
+#     response.set_cookie(key="last_visit", value=now)
+#     return {"message": "куки установлены"}
+
+
+# Прочие возможности при работе с cookie
+
+"""Вы можете указать время истечения срока действия файла cookie, используя параметр "expires", или установить 
+
+максимальный возраст, используя параметр "max_age". Это помогает контролировать срок службы файлов cookie и 
+
+эффективно управлять данными сеанса.
+
+FastAPI предоставляет простой способ удалить файлы cookie, установив время их истечения в прошлом. Это дает указание 
+
+клиенту удалить файл cookie из своего хранилища."""
+
+"""Также у класса Response есть метод delete_cookie, который принимает в качестве аргумента строку (наименование куки) 
+
+и удаляет ее на стороне клиента.
+
+
+Для примера:
+
+@router.post("/logout", status_code=204)
+async def logout_user(response: Response):
+    response.delete_cookie("example_access_token")
+    
+Под капотом, этот метод вызывает метод set_cookie и устанавливает атрибутам max_age и expires значение 0.
+
+На этом данный урок заканчивается. Давайте продолжим наше путешествие по созданию мощных и безопасных API-интерфейсов с 
+
+помощью FastAPI! """
+
+# Задача на программирование
+
+from fastapi import Cookie, Response
+from app.chapter_3.models import User
+
+# имитируем хранилище юзеров
+sample_user: dict = {"username": "user123", "password": "password123"}  # создали тестового юзера, якобы он уже
+# зарегистрирован у нас
+fake_db: list[User] = [User(**sample_user)]  # имитируем базу данных
+
+# имитируем хранилище сессий
+sessions: dict = {}  # это можно хранить в кэше, например в Redis
+
+
+@router.post('/login')
+async def login(user: User, response: Response):
+    for person in fake_db:  # перебрали юзеров в нашем примере базы данных
+        if person.username == user.username and person.password == user.password:  # сверили логин и пароль
+            session_token = "abc123xyz456"  # тут можно использовать модуль uuid (в продакшене), или модуль random
+            # (для выполнения задания), или самому написать рандомное значение куки, т.к. это пример тестовый
+            sessions[session_token] = user  # сохранили у себя в словаре сессию, где токен - это ключ, а значение -
+            # объект юзера
+            response.set_cookie(key="session_token", value=session_token, httponly=True)  # тут установили куки с
+            # защищенным флагом httponly - недоступны для вредоносного JS; флаг secure означает, что куки идут только
+            # по HTTPS
+            return {"message": "куки установлены"}
+    return {"message": "Invalid username or password"}  # тут можно вернуть что хотите, в ТЗ не конкретезировалось, что
+    # делать, если логин/пароль неправильные
+
+
+@router.get('/user')
+async def user_info(session_token=Cookie()):
+    user = sessions.get(
+        session_token)  # ищем в сессиях был ли такой токен создан, и если был, то возвращаем связанного
+    # с ним юзера
+    if user:
+        return user.dict()  # у pydantic моделей есть метод dict(), который делает словарь из модели. Можно сразу
+        # хранить словарь в сессии, не суть. Для Pydantic версии > 2 метод переименован в model_dump()
+    return {"message": "Unauthorized"}

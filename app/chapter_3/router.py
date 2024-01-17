@@ -2,7 +2,7 @@ from fastapi import APIRouter
 
 router = APIRouter(
     prefix="/tasks",
-    tags=["Глава chapter_3:"]
+    tags=["Chapter_3:"]
 )
 
 # from fastapi.responses import FileResponse
@@ -412,40 +412,92 @@ async def logout_user(response: Response):
 
 # Задача на программирование
 
-from fastapi import Cookie, Response
-from app.chapter_3.models import User
+# from fastapi import Cookie, Response
+# from app.chapter_3.models import User
+#
+# # имитируем хранилище юзеров
+# sample_user: dict = {"username": "user123", "password": "password123"}  # создали тестового юзера, якобы он уже
+# # зарегистрирован у нас
+# fake_db: list[User] = [User(**sample_user)]  # имитируем базу данных
+#
+# # имитируем хранилище сессий
+# sessions: dict = {}  # это можно хранить в кэше, например в Redis
+#
+#
+# @router.post('/login')
+# async def login(user: User, response: Response):
+#     for person in fake_db:  # перебрали юзеров в нашем примере базы данных
+#         if person.username == user.username and person.password == user.password:  # сверили логин и пароль
+#             session_token = "abc123xyz456"  # тут можно использовать модуль uuid (в продакшене), или модуль random
+#             # (для выполнения задания), или самому написать рандомное значение куки, т.к. это пример тестовый
+#             sessions[session_token] = user  # сохранили у себя в словаре сессию, где токен - это ключ, а значение -
+#             # объект юзера
+#             response.set_cookie(key="session_token", value=session_token, httponly=True)  # тут установили куки с
+#             # защищенным флагом httponly - недоступны для вредоносного JS; флаг secure означает, что куки идут только
+#             # по HTTPS
+#             return {"message": "куки установлены"}
+#     return {"message": "Invalid username or password"}  # тут можно вернуть что хотите, в ТЗ не конкретезировалось,
+#     # что делать, если логин/пароль неправильные
+#
+#
+# @router.get('/user')
+# async def user_info(session_token=Cookie()):
+#     user = sessions.get(
+#         session_token)  # ищем в сессиях был ли такой токен создан, и если был, то возвращаем связанного
+#     # с ним юзера
+#     if user:
+#         return user.dict()  # у pydantic моделей есть метод dict(), который делает словарь из модели. Можно сразу
+#         # хранить словарь в сессии, не суть. Для Pydantic версии > 2 метод переименован в model_dump()
+#     return {"message": "Unauthorized"}
 
-# имитируем хранилище юзеров
-sample_user: dict = {"username": "user123", "password": "password123"}  # создали тестового юзера, якобы он уже
-# зарегистрирован у нас
-fake_db: list[User] = [User(**sample_user)]  # имитируем базу данных
 
-# имитируем хранилище сессий
-sessions: dict = {}  # это можно хранить в кэше, например в Redis
+#                                           3.3
 
+#                               Работа с заголовками запросов
 
-@router.post('/login')
-async def login(user: User, response: Response):
-    for person in fake_db:  # перебрали юзеров в нашем примере базы данных
-        if person.username == user.username and person.password == user.password:  # сверили логин и пароль
-            session_token = "abc123xyz456"  # тут можно использовать модуль uuid (в продакшене), или модуль random
-            # (для выполнения задания), или самому написать рандомное значение куки, т.к. это пример тестовый
-            sessions[session_token] = user  # сохранили у себя в словаре сессию, где токен - это ключ, а значение -
-            # объект юзера
-            response.set_cookie(key="session_token", value=session_token, httponly=True)  # тут установили куки с
-            # защищенным флагом httponly - недоступны для вредоносного JS; флаг secure означает, что куки идут только
-            # по HTTPS
-            return {"message": "куки установлены"}
-    return {"message": "Invalid username or password"}  # тут можно вернуть что хотите, в ТЗ не конкретезировалось, что
-    # делать, если логин/пароль неправильные
+#                                   Заголовки запросов
+"""HTTP-заголовки - это метаданные, которые сопровождают HTTP-запрос или ответ. FastAPI позволяет вам получать 
+
+доступ к заголовкам запросов и работать с ними для извлечения важной информации, такой как токены аутентификации, 
+
+юзер-агенты и типы контента.
+
+FastAPI позволяет вам получать доступ к заголовкам запросов (headers) в рамках ваших функций маршрутизации. 
+
+Вы можете использовать заголовки для предоставления дополнительной информации или данных авторизации вашему API."""
+
+from typing import Annotated
+
+from fastapi import FastAPI, Header
+
+app = FastAPI()
 
 
-@router.get('/user')
-async def user_info(session_token=Cookie()):
-    user = sessions.get(
-        session_token)  # ищем в сессиях был ли такой токен создан, и если был, то возвращаем связанного
-    # с ним юзера
-    if user:
-        return user.dict()  # у pydantic моделей есть метод dict(), который делает словарь из модели. Можно сразу
-        # хранить словарь в сессии, не суть. Для Pydantic версии > 2 метод переименован в model_dump()
-    return {"message": "Unauthorized"}
+@router.get("/items/")
+async def read_items(user_agent: Annotated[str | None, Header()] = None):
+    return {"User-Agent": user_agent}
+
+
+"""Разберём эту строчку: user_agent: Annotated[str | None, Header()] = None:
+
+user_agent - это имя заголовка, который мы ищем;
+
+при помощи Annotated мы задаём тип данных в заголовке (строка или None), соответственно другие типы не пройдут 
+валидацию; 
+также мы аннотируем формат тем, что указываем, что ожидаем именно заголовок (при помощи нашего класса Header) - то есть 
+
+с помощью Annotated можно аннотировать переменную чем-то другим, кроме ее типа (например, строкой документации, чтобы 
+
+какой-то гипотетический инструмент мог использовать ее для автоматического создания документации) или в нашем 
+
+случае - классом, то есть мы говорим что тип - это строка или None, с одной стороны, но и заголовок - с другой;
+
+в дополнение класс Header переводит наш snake_case у user_agent к формату заголовков ("User-Agent") - искать 
+
+будет именно его;
+
+и последнее - мы задаём значение заголовка по-умолчанию (=None ), и если заголовок не поступит в запросе, то 
+
+внутри функции переменная user_agent будет равна None...мы можем задать здесь любое другое значение по умолчанию, 
+
+если захотим."""

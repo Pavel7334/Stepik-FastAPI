@@ -528,191 +528,275 @@ router = APIRouter(
 
 #                                   Понимание управления доступом на основе ролей (RBAC)
 
-"""Понимание управления доступом на основе ролей (RBAC)
-Управление доступом на основе ролей (RBAC - Role Based Access Control) - это мощный подход к управлению разрешениями 
-в веб-приложениях. Он обеспечивает гибкий и масштабируемый способ назначения определенных ролей пользователям, 
-предоставляя им доступ только к тем ресурсам и действиям, которые соответствуют их роли или уровню авторизации. RBAC 
-упрощает процесс предоставления и отзыва прав доступа на основе предопределенных ролей, снижая риск 
-несанкционированного доступа."""
+# """Понимание управления доступом на основе ролей (RBAC)
+# Управление доступом на основе ролей (RBAC - Role Based Access Control) - это мощный подход к управлению разрешениями
+# в веб-приложениях. Он обеспечивает гибкий и масштабируемый способ назначения определенных ролей пользователям,
+# предоставляя им доступ только к тем ресурсам и действиям, которые соответствуют их роли или уровню авторизации. RBAC
+# упрощает процесс предоставления и отзыва прав доступа на основе предопределенных ролей, снижая риск
+# несанкционированного доступа."""
+#
+# #                                               Компоненты RBAC
+#
+# """RBAC обычно состоит из следующих компонентов:
+#
+# Роли: Роли определяются на основе обязанностей пользователя или должностных функций. С каждой ролью связаны
+# определенные разрешения, которые определяют, какие действия может выполнять пользователь.
+#
+# Разрешения: Разрешения представляют собой отдельные действия или операции, которые пользователь может выполнять в
+# приложении. Например, разрешение "чтение" позволяет пользователю просматривать данные, в то время как разрешение
+# "запись" предоставляет возможность изменять данные.
+#
+# Пользователи: Пользователям назначается одна или несколько ролей, в зависимости от их обязанностей и требований к
+# доступу"""
+#
+# #                                           Внедрение RBAC в FastAPI
+#
+# """Чтобы реализовать RBAC в приложении FastAPI, мы можем использовать комбинацию механизмов аутентификации (например,
+# аутентификацию на основе JWT) и пользовательскую логику авторизации. Вот высокоуровневый обзор того, как может быть
+# реализован RBAC:
+#
+# Шаг 1: Определите роли и разрешения. Определите роли и соответствующие им разрешения, которые соответствуют
+# требованиям приложения. Например, у вас могут быть такие роли, как "администратор", "пользователь" и "гость", каждая
+# из которых имеет определенные разрешения.
+#
+# Шаг 2: Свяжите роли с пользователями. Назначайте роли пользователям в процессе регистрации пользователя или на основе
+# их атрибутов. Например, пользователь с правами администратора может иметь роль "администратор", в то время как обычный
+# пользователь имеет роль "пользователь".
+#
+# Шаг 3: Авторизация на основе ролей. Создайте логику авторизации, которая проверяет роль пользователя и необходимые
+# разрешения, прежде чем разрешить доступ к определенным ресурсам или конечным точкам. Например, пользователь с правами
+# администратора может иметь доступ к созданию и удалению ресурсов, в то время как обычный пользователь может только
+# читать и обновлять их."""
+#
+# #                                       Обработка доступа на основе ролей
+#
+# """FastAPI предоставляет различные механизмы для управления доступом на основе ролей, такие как:
+# Внедрение зависимостей: Система внедрения зависимостей FastAPI позволяет создавать пользовательские зависимости,
+# которые проверяют роль пользователя перед предоставлением доступа к определенным конечным точкам.
+# Авторизация на основе декоратора: Вы можете использовать декораторы Python для определения авторизации на основе
+# ролей для определенных конечных точек, что упрощает управление доступом на уровне конечной точки.
+# Интеграция с базой данных: Объедините RBAC с базой данных вашего приложения для хранения ролей пользователей и
+# связанных с ними разрешений."""
+#
+# #                              Более глубокое понимание управления доступом на основе ролей (RBAC)
+#
+# """Как вы могли понять, управление доступом на основе ролей (RBAC - Role Based Access Control) - это мощный подход к
+# управлению разрешениями в веб-приложениях. Он обеспечивает гибкий и масштабируемый способ назначения определенных
+# ролей пользователям, предоставляя им доступ только к тем ресурсам и действиям, которые соответствуют их роли или
+# уровню авторизации. RBAC упрощает процесс предоставления и отзыва прав доступа на основе предопределенных ролей,
+# снижая риск несанкционированного доступа."""
+#
+# """Давайте рассмотрим довольно объёмный пример кода реализации (хотя если вы выполняли предыдущее задание, то
+# перекопали намного больше информации по JWT и теперь можете сделать реальную защиту для FastAPI приложения):"""
+#
+# from fastapi import FastAPI, HTTPException, Depends, status
+# from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm  # для реквест-формы нам нужно установить
+# # доп. библиотеку командой pip install python-multipart
+# from pydantic import BaseModel
+# import jwt
+# from typing import Optional, Annotated
+#
+# '''тут работаем с библиотекой PyJWT,
+# но в реальной жизни вы скорее всего предпочтете 'python-jose', которая чуть шире PyJWT и рекомендуется самими FastAPI
+# '''
+#
+# app = FastAPI()
+#
+# # Секретный ключ для подписи и верификации токенов JWT
+# SECRET_KEY = "mysecretkey"  # тут мы в реальной практике используем что-нибудь вроде команды Bash (Linux) 'openssl
+# # rand -hex 32', и храним очень защищенно
+# ALGORITHM = "HS256"  # плюс в реальной жизни мы устанавливаем "время жизни" токена
+#
+# # Пример информации из БД
+# USERS_DATA = {
+#     "admin": {"username": "admin", "password": "adminpass", "role": "admin"},
+#     "user": {"username": "user", "password": "userpass", "role": "user"},
+# }  # в реальной БД мы храним только ХЭШИ паролей (можете прочитать про библиотеку, к примеру, 'passlib') + соль
+# # (известная только нам добавка к паролю)
+#
+# # OAuth2PasswordBearer для авторизации по токену
+# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+#
+#
+# # Модель User для аутентификации (если делали задание по JWT, то тут добавляем только роль)
+# class User(BaseModel):
+#     username: str
+#     password: str
+#     role: Optional[str] = None
+#
+#
+# # Функция для создания JWT токена
+# def create_jwt_token(data: dict):
+#     return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
+#
+#
+# # Функция получения User'а по токену - это скорее всего была самая сложная часть в предыдущем задании
+# def get_user_from_token(token: str = Depends(oauth2_scheme)):
+#     try:
+#         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])  # декодируем токен
+#         return payload.get("sub")  # тут мы идем в полезную нагрузку JWT-токена и возвращаем утверждение о
+#         # юзере (subject); обычно там еще можно взять "iss" - issuer/эмитент, или "exp" - expiration time - время
+#         # 'сгорания' и другое, что мы сами туда кладем
+#     except jwt.ExpiredSignatureError:
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="Token has expired",
+#             headers={"WWW-Authenticate": "Bearer"},
+#         )
+#     except jwt.InvalidTokenError:
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="Invalid token",
+#             headers={"WWW-Authenticate": "Bearer"},
+#         )
+#
+#
+# # Функция для получения пользовательских данных на основе имени пользователя
+# def get_user(username: str):
+#     if username in USERS_DATA:
+#         user_data = USERS_DATA[username]
+#         return User(**user_data)
+#     return None
+#
+#
+# # Роут для получения JWT-токена (так работает логин)
+# @router.post("/token/")
+# def login(user_data: Annotated[OAuth2PasswordRequestForm, Depends()]):  # тут логинимся через форму
+#     user_data_from_db = get_user(user_data.username)
+#     if user_data_from_db is None or user_data.password != user_data_from_db.password:
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="Invalid credentials",
+#             headers={"WWW-Authenticate": "Bearer"},
+#         )
+#     return {"access_token": create_jwt_token({"sub": user_data.username})}  # тут мы добавляем полезную нагрузку в
+#     # токен, и говорим, что "sub" содержит значение username
+#
+#
+# # Защищенный роут для админов, когда токен уже получен
+# @router.get("/admin/")
+# def get_admin_info(current_user: str = Depends(get_user_from_token)):
+#     user_data = get_user(current_user)
+#     if user_data.role != "admin":
+#         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+#     return {"message": "Welcome Admin!"}
+#
+#
+# # Защищенный роут для обычных пользователей, когда токен уже получен
+# @router.get("/user/")
+# def get_user_info(current_user: str = Depends(get_user_from_token)):
+#     user_data = get_user(current_user)
+#     if user_data.role != "user":
+#         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+#     return {"message": "Hello User!"}
+#
+#
+# """П.С. для удобства восприятия мы приводим код единым текстом, хотя тут, по сути, файлы: main.py, routes.py,
+# models.py, config.py, security.py, возможно имитация db.py.
+#
+# В этом примере мы определяем модель `User` для представления пользовательских данных с ролями (администратор или
+# пользователь). Мы используем словарь `USERS_DATA` для хранения образцов пользовательских данных. Для простоты в этом
+# примере мы не используем какую-либо базу данных (они будут рассмотрены в следующем модуле).
+#
+# Маршрут `/token/` позволяет пользователям войти в систему и получить токен JWT. Токен используется для последующих
+# запросов в качестве средства аутентификации. Обратно нам вернется токен.
+#
+# Мы определяем два защищенных маршрута: "/admin/" и "/user/", для доступа к которым требуется аутентифицированный
+# пользователь с соответствующими ролями. Например, в  Postman'е, мы отправляем GET-запрос, на вкладке Authorization
+# выбираем тип "Bearer Token" и копируем полученный токен (без кавычек). Доступ открыт, поздравляю!
+#
+# Далее под капотом при получении GET-запроса мы используем функцию `Depends(get_user_from_token)` для извлечения
+# пользовательских данных из токена JWT и проверки их ролей, прежде чем разрешить доступ к защищенным маршрутам.
+#
+# Примечание: В реальном приложении важно использовать надлежащие меры безопасности и базу данных для безопасного
+# хранения пользовательских данных и управления ими. Этот пример предназначен только для демонстрационных целей и
+# может не подходить для производственного использования, поскольку он хранит пользовательские данные в памяти.
+#
+# Плюс не забудьте про минимальную длину пароля пользователей (желательно 16 символов, включающих буквы, цифры и
+# символы), а также установить блокировку (защиту) от подбора паролей (Х попытки и блок на ХХ минут), в т.ч. можно
+# выписывать баны (включать в список заблокированных адресов). Про соль к паролю и прочее можете почитать тут:
+#
+# https://habr.com/ru/companies/acribia/articles/413157/"""
 
-#                                               Компоненты RBAC
+#                                             Задача на программирование
 
-"""RBAC обычно состоит из следующих компонентов:
+#                                                   ПЕРВЫЙ ПРИМЕР!
 
-Роли: Роли определяются на основе обязанностей пользователя или должностных функций. С каждой ролью связаны 
-определенные разрешения, которые определяют, какие действия может выполнять пользователь.
-
-Разрешения: Разрешения представляют собой отдельные действия или операции, которые пользователь может выполнять в 
-приложении. Например, разрешение "чтение" позволяет пользователю просматривать данные, в то время как разрешение 
-"запись" предоставляет возможность изменять данные.
-
-Пользователи: Пользователям назначается одна или несколько ролей, в зависимости от их обязанностей и требований к 
-доступу"""
-
-#                                           Внедрение RBAC в FastAPI
-
-"""Чтобы реализовать RBAC в приложении FastAPI, мы можем использовать комбинацию механизмов аутентификации (например, 
-аутентификацию на основе JWT) и пользовательскую логику авторизации. Вот высокоуровневый обзор того, как может быть 
-реализован RBAC:
-
-Шаг 1: Определите роли и разрешения. Определите роли и соответствующие им разрешения, которые соответствуют 
-требованиям приложения. Например, у вас могут быть такие роли, как "администратор", "пользователь" и "гость", каждая 
-из которых имеет определенные разрешения.
-
-Шаг 2: Свяжите роли с пользователями. Назначайте роли пользователям в процессе регистрации пользователя или на основе 
-их атрибутов. Например, пользователь с правами администратора может иметь роль "администратор", в то время как обычный 
-пользователь имеет роль "пользователь".
-
-Шаг 3: Авторизация на основе ролей. Создайте логику авторизации, которая проверяет роль пользователя и необходимые 
-разрешения, прежде чем разрешить доступ к определенным ресурсам или конечным точкам. Например, пользователь с правами 
-администратора может иметь доступ к созданию и удалению ресурсов, в то время как обычный пользователь может только 
-читать и обновлять их."""
-
-#                                       Обработка доступа на основе ролей
-
-"""FastAPI предоставляет различные механизмы для управления доступом на основе ролей, такие как:
-Внедрение зависимостей: Система внедрения зависимостей FastAPI позволяет создавать пользовательские зависимости, 
-которые проверяют роль пользователя перед предоставлением доступа к определенным конечным точкам.
-Авторизация на основе декоратора: Вы можете использовать декораторы Python для определения авторизации на основе 
-ролей для определенных конечных точек, что упрощает управление доступом на уровне конечной точки.
-Интеграция с базой данных: Объедините RBAC с базой данных вашего приложения для хранения ролей пользователей и 
-связанных с ними разрешений."""
-
-#                              Более глубокое понимание управления доступом на основе ролей (RBAC)
-
-"""Как вы могли понять, управление доступом на основе ролей (RBAC - Role Based Access Control) - это мощный подход к 
-управлению разрешениями в веб-приложениях. Он обеспечивает гибкий и масштабируемый способ назначения определенных 
-ролей пользователям, предоставляя им доступ только к тем ресурсам и действиям, которые соответствуют их роли или 
-уровню авторизации. RBAC упрощает процесс предоставления и отзыва прав доступа на основе предопределенных ролей, 
-снижая риск несанкционированного доступа."""
-
-"""Давайте рассмотрим довольно объёмный пример кода реализации (хотя если вы выполняли предыдущее задание, то 
-перекопали намного больше информации по JWT и теперь можете сделать реальную защиту для FastAPI приложения):"""
-
-from fastapi import FastAPI, HTTPException, Depends, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm # для реквест-формы нам нужно установить
-# доп. библиотеку командой pip install python-multipart
-from pydantic import BaseModel
-import jwt
-from typing import Optional, Annotated
-'''тут работаем с библиотекой PyJWT, 
-но в реальной жизни вы скорее всего предпочтете 'python-jose', которая чуть шире PyJWT и рекомендуется самими FastAPI
-'''
-
-app = FastAPI()
-
-# Секретный ключ для подписи и верификации токенов JWT
-SECRET_KEY = "mysecretkey" # тут мы в реальной практике используем что-нибудь вроде команды Bash (Linux) 'openssl
-# rand -hex 32', и храним очень защищенно
-ALGORITHM = "HS256" # плюс в реальной жизни мы устанавливаем "время жизни" токена
-
-# Пример информации из БД
-USERS_DATA = {
-    "admin": {"username": "admin", "password": "adminpass", "role": "admin"},
-    "user": {"username": "user", "password": "userpass", "role": "user"},
-} # в реальной БД мы храним только ХЭШИ паролей (можете прочитать про библиотеку, к примеру, 'passlib') + соль
-# (известная только нам добавка к паролю)
-
-# OAuth2PasswordBearer для авторизации по токену
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-
-# Модель User для аутентификации (если делали задание по JWT, то тут добавляем только роль)
-class User(BaseModel):
-    username: str
-    password: str
-    role: Optional[str] = None
-
-
-# Функция для создания JWT токена
-def create_jwt_token(data: dict):
-    return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
-
-
-# Функция получения User'а по токену - это скорее всего была самая сложная часть в предыдущем задании
-def get_user_from_token(token: str = Depends(oauth2_scheme)):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM]) # декодируем токен
-        return payload.get("sub") # тут мы идем в полезную нагрузку JWT-токена и возвращаем утверждение о
-        # юзере (subject); обычно там еще можно взять "iss" - issuer/эмитент, или "exp" - expiration time - время
-        # 'сгорания' и другое, что мы сами туда кладем
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except jwt.InvalidTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-
-# Функция для получения пользовательских данных на основе имени пользователя
-def get_user(username: str):
-    if username in USERS_DATA:
-        user_data = USERS_DATA[username]
-        return User(**user_data)
-    return None
-
-
-# Роут для получения JWT-токена (так работает логин)
-@app.post("/token/")
-def login(user_data: Annotated[OAuth2PasswordRequestForm, Depends()]): # тут логинимся через форму
-    user_data_from_db = get_user(user_data.username)
-    if user_data_from_db is None or user_data.password != user_data_from_db.password:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return {"access_token": create_jwt_token({"sub": user_data.username})} # тут мы добавляем полезную нагрузку в
-    # токен, и говорим, что "sub" содержит значение username
-
-
-# Защищенный роут для админов, когда токен уже получен
-@app.get("/admin/")
-def get_admin_info(current_user: str = Depends(get_user_from_token)):
-    user_data = get_user(current_user)
-    if user_data.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
-    return {"message": "Welcome Admin!"}
-
-
-# Защищенный роут для обычных пользователей, когда токен уже получен
-@app.get("/user/")
-def get_user_info(current_user: str = Depends(get_user_from_token)):
-    user_data = get_user(current_user)
-    if user_data.role != "user":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
-    return {"message": "Hello User!"}
-
-"""П.С. для удобства восприятия мы приводим код единым текстом, хотя тут, по сути, файлы: main.py, routes.py, 
-models.py, config.py, security.py, возможно имитация db.py. 
-
-В этом примере мы определяем модель `User` для представления пользовательских данных с ролями (администратор или 
-пользователь). Мы используем словарь `USERS_DATA` для хранения образцов пользовательских данных. Для простоты в этом 
-примере мы не используем какую-либо базу данных (они будут рассмотрены в следующем модуле).
-
-Маршрут `/token/` позволяет пользователям войти в систему и получить токен JWT. Токен используется для последующих 
-запросов в качестве средства аутентификации. Обратно нам вернется токен.
-
-Мы определяем два защищенных маршрута: "/admin/" и "/user/", для доступа к которым требуется аутентифицированный 
-пользователь с соответствующими ролями. Например, в  Postman'е, мы отправляем GET-запрос, на вкладке Authorization 
-выбираем тип "Bearer Token" и копируем полученный токен (без кавычек). Доступ открыт, поздравляю! 
-
-Далее под капотом при получении GET-запроса мы используем функцию `Depends(get_user_from_token)` для извлечения 
-пользовательских данных из токена JWT и проверки их ролей, прежде чем разрешить доступ к защищенным маршрутам.
-
-Примечание: В реальном приложении важно использовать надлежащие меры безопасности и базу данных для безопасного 
-хранения пользовательских данных и управления ими. Этот пример предназначен только для демонстрационных целей и 
-может не подходить для производственного использования, поскольку он хранит пользовательские данные в памяти.
-
-Плюс не забудьте про минимальную длину пароля пользователей (желательно 16 символов, включающих буквы, цифры и 
-символы), а также установить блокировку (защиту) от подбора паролей (Х попытки и блок на ХХ минут), в т.ч. можно 
-выписывать баны (включать в список заблокированных адресов). Про соль к паролю и прочее можете почитать тут:
-
-https://habr.com/ru/companies/acribia/articles/413157/"""
-
+# from fastapi import FastAPI, Depends, HTTPException, status
+# from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+# from datetime import datetime, timedelta
+# import jwt
+#
+# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+# SECRET = 'secretSeed'
+#
+# members = {'admin': {'username': 'admin',
+#                      'password': 'SecretPass',
+#                      'role': 'Administrators'},
+#            'user': {'username': 'user',
+#                     'password': 'qwerty',
+#                     'role': 'Users'},
+#            'guest': {'username': 'guest',
+#                      'password': '123',
+#                      'role': 'Guests'}}
+#
+#
+# def check_user(username: str, pwd: str):
+#     if username not in members:
+#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+#                             detail='Bad login')
+#     if pwd != members[username]['password']:
+#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+#                             detail='Bad password')
+#     return members[username]
+#
+#
+# def gen_token(payload: dict):
+#     payload.update({'exp': (datetime.now() +
+#                             timedelta(minutes=2)).timestamp()})
+#     return jwt.encode(payload=payload, key=SECRET, algorithm='HS256')
+#
+#
+# def check_token(token: OAuth2PasswordBearer = Depends(oauth2_scheme)):
+#     try:
+#         data = jwt.decode(jwt=token, key=SECRET, algorithms=['HS256'])
+#         return data['sub']
+#     except jwt.exceptions.ExpiredSignatureError:
+#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+#                             detail='Session Expired')
+#     except jwt.exceptions.InvalidTokenError:
+#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+#                             detail='Invalid Token')
+#
+#
+# @router.post('/login/')
+# async def login(user_data: OAuth2PasswordRequestForm = Depends()):
+#     user = check_user(user_data.username, pwd=user_data.password)
+#     return {'access_token': gen_token({'sub': user['username']})}
+#
+#
+# @router.get('/write/')
+# async def write_access(username: str = Depends(check_token)):
+#     access_roles = ('Administrators')
+#     if members[username]['role'] in access_roles:
+#         return 'Yeah! Success write!'
+#     raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
+#                         detail='Access Dieaned!')
+#
+#
+# @router.get('/read/')
+# async def read_access(username: str = Depends(check_token)):
+#     access_roles = ('Administrators', 'Users')
+#     if members[username]['role'] in access_roles:
+#         return 'Yeah! Success read!'
+#     raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
+#                         detail='Access Dieaned!')
+#
+#
+# @router.get('/request/')
+# async def request_access(username: str = Depends(check_token)):
+#     access_roles = ('Administrators', 'Users', 'Guests')
+#     if members[username]['role'] in access_roles:
+#         return 'Yeah! Success request!'
+#     raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
+#                         detail='Access Dieaned!')

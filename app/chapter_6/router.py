@@ -278,3 +278,305 @@ router = APIRouter(
 #         raise CustomExceptionB(detail="Not found", status_code=404)
 #     return {"primer_id": primer_id}
 
+
+#                                                       6.2
+
+#                                       Введение в ошибки проверки (валидации) данных
+
+# Ошибки проверки (валидации) возникают, когда данные, отправленные в веб-приложение, не соответствуют указанным
+# правилам или требованиям проверки. FastAPI предоставляет мощные инструменты для эффективной обработки ошибок
+# проверки, гарантируя, что приложение обрабатывает только достоверные данные. В этом уроке мы рассмотрим, как
+# обрабатывать ошибки проверки (валидации) в приложениях FastAPI
+
+#                                              Проверка данных запроса
+
+# FastAPI использует мощные возможности проверки данных Pydantic для проверки входящих данных запроса. Определяя
+# модели Pydantic или указывая тип ожидаемых (принимаемых) данных для тел запросов, параметров запроса, параметров
+# пути и заголовков, мы можем автоматически проверять данные на соответствие правилам указанной модели
+# (указанным типам).
+
+#                                              Обработка ошибок проверки
+
+# Когда данные не проходят проверку, FastAPI автоматически вызывает `HttpException` с кодом состояния объекта 422
+# Unprocessable entity. Это исключение содержит подробную информацию об ошибках проверки, что облегчает определение
+# причины несоответствия.
+
+#                                           Настройка ответов на ошибки проверки
+
+# FastAPI позволяет нам настраивать ответы на ошибки проверки, чтобы предоставлять пользователям более содержательную
+# обратную связь. Мы можем создать пользовательские обработчики ошибок проверки с помощью
+# декоратора `@app.exception_handler` и настроить содержимое ответа и код состояния.
+
+#                                          Обработка ошибок в теле запроса FastAPI
+
+# FastAPI также позволяет нам контролировать, как обрабатываются ошибки синтаксического анализа тела запроса. По
+# умолчанию ошибки синтаксического анализа тела запроса возвращают код состояния объекта 422 Unprocessable entity.
+# Однако мы можем переопределить это поведение и настроить ответ так, чтобы он лучше соответствовал потребностям
+# нашего приложения.
+#
+# Пример модели для проверки тела запроса:
+#
+# from typing import Union
+#
+# from fastapi import FastAPI
+# from pydantic import BaseModel
+#
+#
+# class Item(BaseModel):
+#     name: str
+#     description: Union[str, None] = None
+#     price: float
+#     tax: Union[float, None] = None
+#
+#
+# app = FastAPI()
+#
+#
+# @app.post("/items/")
+# async def create_item(item: Item):
+#     return item
+# Давайте расширим этот код, добавив пользовательское сообщение об ошибке:
+#
+# from typing import Union
+# from fastapi import FastAPI, HTTPException
+# from pydantic import BaseModel
+#
+# class Item(BaseModel):
+#     name: str
+#     description: Union[str, None] = None
+#     price: float
+#     tax: Union[float, None] = None
+#
+# app = FastAPI()
+#
+# @app.post("/items/")
+# async def create_item(item: Item):
+#     try:
+#         # тут добавили дополнительную проверку
+#         if item.price < 0:
+#             raise ValueError("Price must be non-negative")
+#
+#         # это вернётся в случае успеха
+#         return {"message": "Item created successfully", "item": item}
+#     except ValueError as ve:
+#         # обрабатываем нашу ошибку валидации и пробрасываем ошибку выше с кастомным ответом
+#         raise HTTPException(status_code=400, detail=str(ve))
+# С использованием декоратора @app.exception_handler это могло бы выглядеть так:
+#
+# from typing import Union
+# from fastapi import FastAPI
+# from fastapi.responses import JSONResponse
+# from pydantic import BaseModel
+#
+# class Item(BaseModel):
+#     name: str
+#     description: Union[str, None] = None
+#     price: float
+#     tax: Union[float, None] = None
+#
+# app = FastAPI()
+#
+# @app.exception_handler(ValueError)  # кастомный хэндлер для ValueError
+# async def value_error_handler(request, exc):
+#     return JSONResponse(status_code=400, content={"error": str(exc)})
+#
+# @app.post("/items/")
+# async def create_item(item: Item):
+#     try:
+#         if item.price < 0:
+#             raise ValueError("Price must be non-negative")
+#
+#         # вернём при успехе
+#         return {"message": "Item created successfully", "item": item}
+#     except ValueError as ve:
+#         # выбрасываем ValueError чтобы сработал кастомный обработчик нашего исключения
+#         raise ve
+# Или продвинутый пример работы с ошибками валидации:
+#
+# from fastapi import FastAPI, HTTPException
+# from fastapi.exceptions import RequestValidationError
+# from fastapi.responses import JSONResponse
+# from pydantic import BaseModel
+#
+# app = FastAPI()
+#
+# # кастомный обработчик исключения для всех HTTPException
+# async def custom_http_exception_handler(request, exc):
+#     return JSONResponse(
+#         status_code=exc.status_code,
+#         content={"error": str(exc)},
+#     )
+#
+# # кастомный обработчик исключения для RequestValidationError (Pydantic validation errors - 422 Unprocessable Entity)
+# async def custom_request_validation_exception_handler(request, exc):
+#     return JSONResponse(
+#         status_code=422,
+#         content={"message": "Custom Request Validation Error", "errors": exc.errors()},
+#     )
+#
+# # тут показываем альтернативный декораторам способ регистрации хэндлеров
+# app.add_exception_handler(HTTPException, custom_http_exception_handler)
+# app.add_exception_handler(RequestValidationError, custom_request_validation_exception_handler)
+#
+# class Item(BaseModel):
+#     name: str
+#     price: float
+#
+# @app.post("/items/")
+# async def create_item(item: Item):
+#     if item.price < 0:
+#         raise HTTPException(status_code=400, detail="Price must be non-negative")
+#     return {"message": "Item created successfully", "item": item}
+# Также Pydantic позволяет расширить валидацию, добавив собственные валидаторы, например так:
+#
+# from typing import Union
+# from fastapi import FastAPI, HTTPException
+# from pydantic import BaseModel, validator
+#
+# class Item(BaseModel):
+#     name: str
+#     description: Union[str, None] = None
+#     price: float
+#     tax: Union[float, None] = None
+#
+#     @validator("price")
+#     @classmethod
+#     def validate_price(cls, value):
+#         if value < 0:
+#             raise ValueError("Price must be non-negative")
+#         return value
+#
+# app = FastAPI()
+#
+# @app.post("/items/")
+# async def create_item(item: Item):
+#     return {"message": "Item created successfully", "item": item}
+#
+# Пользовательские валидаторы могут быть очень мощными и могут помочь вам создавать модели данных, адаптированные к
+# вашим конкретным потребностям. Только будьте аккуратны с регулярными выражениями :)
+
+#               Проверка с использованием параметров запроса, параметров пути и параметров заголовков
+
+# FastAPI расширяет свои возможности проверки также на параметры запроса, пути и заголовков (как мы указывали ранее).
+# Определяя модели Pydantic для этих параметров (или указывая в параметрах функции явно ожидаемый тип данных), мы
+# можем проверять и автоматически преобразовывать данные до того, как они достигнут наших функций конечной точки, а
+# потом уже обрабатывать по аналогии с предыдущим примером.
+#
+# Пример валидации Query-параметров:
+#
+# from fastapi import FastAPI
+#
+# app = FastAPI()
+#
+#
+# @app.get("/items/")
+# async def read_items(q: str | None = None): # валидируем тут и задаём значение по-умолчанию
+#     results = {"items": [{"item_id": "Foo"}, {"item_id": "Bar"}]}
+#     if q:
+#         results.update({"q": q})
+#     return results
+#
+# Пример валидации Path-параметров:
+#
+# from fastapi import FastAPI
+#
+# app = FastAPI()
+#
+#
+# @app.get("/items/{item_id}")
+# async def read_item(item_id: int): # задаём тип тут
+#     return {"item_id": item_id}
+# Пример валидации Header-параметров:
+#
+# from typing import Annotated
+#
+# from fastapi import FastAPI, Header
+#
+# app = FastAPI()
+#
+#
+# @app.get("/items/")
+# async def read_items(user_agent: Annotated[str | None, Header()] = None): # задаём тип тут
+#     return {"User-Agent": user_agent}
+
+#                                             Задача на программирование
+
+# Для этой задачи программирования вам необходимо реализовать проверку данных запроса и пользовательскую обработку
+# ошибок проверки в приложении FastAPI.
+#
+# Требования:
+#
+# 1. Создайте приложение FastAPI по крайней мере с одной конечной точкой, которая принимает полезную нагрузку JSON,
+# представляющую данные пользователя (например, "name", "age", "e-mail" и др. согласно примеру ниже, либо можете
+# использовать свой пример).
+#
+# 2. Определите модель Pydantic для пользовательских данных, чтобы выполнить проверку входящей полезной нагрузки JSON.
+#
+# class User(BaseModel):
+#     username: str
+#     age: conint(gt=18)
+#     email: EmailStr
+#     password: constr(min_length=8, max_length=16)
+#     phone: Optional[str] = 'Unknown'
+# Немного прокомментируем, чтобы вы знали больше, чем мы рассказывали ранее:
+#
+# В username - проверка на строку, ничего необычного;
+#
+# conint - это int с ограничениями (от "add constraints");
+#
+# gt=18 - greater than - больше чем; прочитайте про другие сокращения в FastAPI;
+#
+# EmailStr - проверяет, удовлетворяет ли строка требованиям к емейлу (либо можете написать сами регулярку);
+#
+# constr - аналогично предыдущему, но строка с ограничениями (ограничения по длине - заданы минимальная и
+# максимальная длины);
+#
+# Optional[str] - переменная имеет тип str, но это является «необязательным». И также указали значение по умолчанию.
+#
+# 3. Реализуйте пользовательскую обработку ошибок проверки с помощью декоратора `@app.exception_handler`, чтобы
+# предоставлять информативные ответы об ошибках при сбоях проверки.
+#
+# 4. Протестируйте обработку ошибок пользовательской проверки, отправив запросы с неверными пользовательскими данными
+# в конечную точку и убедившись, что ответы об ошибках содержат соответствующие коды состояния и сообщения об ошибках.
+#
+# Примечание: Вы можете использовать `fastapi.testclient.TestClient` для выполнения тестовых запросов к вашему
+# приложению FastAPI и проверки ответов (про него мы расскажем в следующем блоке).
+
+# from __future__ import annotations
+# from typing import Any, Optional
+# from fastapi import FastAPI, HTTPException, status
+# from fastapi.responses import JSONResponse
+# from pydantic import BaseModel, conint, EmailStr, constr, validator
+#
+#
+# class User(BaseModel):
+#     username: str
+#     age: conint(gt=18)
+#     email: EmailStr
+#     password: constr(min_length=8, max_length=16)
+#     phone: Optional[str] = 'Unknown'
+#
+#     @validator('age')
+#     @classmethod
+#     def validate_age(cls: User, value: int) -> User:
+#         if value > 110:
+#             raise ValueError('User age must be lower than 110')
+#         return value
+#
+#
+# app = FastAPI()
+#
+# @app.exception_handler(ValueError)
+# async def value_error_handler(request, exc):
+#     print(f"value_error_handler: ")
+#     return JSONResponse(
+#         status_code=422,
+#         content={"message": "Custom Request Validation Error", "errors": exc.errors()},
+#     )
+#
+# @app.post('/user')
+# async def post_user(user: User) -> User:
+#     if user.age > 100:
+#         raise HTTPException(detail='User too old', status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+#     return user
+

@@ -381,3 +381,349 @@ router = APIRouter(
 #     response = client.delete(f"contacts/{id}")
 #
 #     assert response.status_code == status.HTTP_404_NOT_FOUND
+
+#                                                       7.2
+
+#                                   Введение мокинг (подделку) внешних зависимостей
+
+# В приложениях FastAPI внешние зависимости, такие как базы данных, внешние API-интерфейсы или сторонние сервисы,
+# играют решающую роль в предоставлении дополнительной функциональности. Однако при написании модульных тестов мы
+# хотим изолировать тестируемый код от этих внешних зависимостей. Имитация (подделка, мокинг) внешних зависимостей
+# позволяет нам заменять реальные реализации контролируемыми заменителями, гарантируя, что наши тесты фокусируются
+# исключительно на конкретной тестируемой единице кода.
+
+#                                                   Потребность в мокинге
+
+# Модульные тесты должны быть быстрыми, надежными и повторяемыми. Без мокинга модульные тесты могут замедлиться из-за
+# времени, затрачиваемого на взаимодействие с реальными базами данных или API. Более того, опора на реальные
+# реализации может привести к несогласованным результатам тестирования из-за внешних факторов, таких как доступность
+# сети или изменения данных.
+
+#                                        Использование `unittest.mock` для мокинга
+
+# Встроенная в Python библиотека unittest.mock предоставляет мощные инструменты для мокинга над объектами и функциями.
+# С помощью `unittest.mock` мы можем создавать макетные объекты, которые имитируют поведение реальных объектов или
+# функций, что делает их подходящей заменой внешних зависимостей в модульных тестах.
+
+#                                               Замена внешних зависимостей
+
+# В FastAPI внешние зависимости часто внедряются в конечные точки или службы с помощью внедрения зависимостей.
+# Заменяя эти зависимости фиктивными объектами во время модульных тестов, мы можем контролировать данные и поведение,
+# которые они предоставляют, что позволяет нам более эффективно тестировать различные сценарии.
+#
+# Допустим, у нас есть часть кода, которая что-то делает с внешним API:
+#
+# # external_api.py
+#
+# import requests
+#
+# def fetch_data_from_api():
+#     response = requests.get("https://api.example.com/data")
+#     if response.status_code == 200:
+#         return response.json()
+#     else:
+#         return None
+#
+# def process_data(data):
+#     # какая-то логика обработки данных
+#     return data.upper()
+# И потом мы эти данные как-то обрабатываем в основном приложении:
+#
+# # app.py
+#
+# from external_api import fetch_data_from_api, process_data
+#
+# def get_and_process_data():
+#     data = fetch_data_from_api()
+#     if data:
+#         return process_data(data)
+#     else:
+#         return None
+# Давайте напишем юнит-тест для get_and_process_data функции, используя unittest.mock:
+#
+# # test_app.py
+#
+# import unittest
+# from unittest.mock import patch, MagicMock
+# from app import get_and_process_data
+#
+# class TestApp(unittest.TestCase):
+#
+#     @patch("app.fetch_data_from_api")
+#     @patch("app.process_data")
+#     def test_get_and_process_data(self, mock_process_data: MagicMock, mock_fetch_data: MagicMock):
+#         # Mock функции fetch_data_from_api для возврата "sample response"
+#         mock_response = {"key": "value"}
+#         mock_fetch_data.return_value = mock_response
+#
+#         # Mock функции process_data
+#         mock_processed_data = {"KEY": "VALUE"}
+#         mock_process_data.return_value = mock_processed_data
+#
+#         # вызываем тестируемую функцию
+#         result = get_and_process_data()
+#
+#         # Assertions
+#         mock_fetch_data.assert_called_once()  # убеждаемся, что fetch_data_from_api был вызван
+#         mock_process_data.assert_called_once_with(mock_response)  # убеждаемся, что process_data была вызвана с
+#         "mocked response"
+#         self.assertEqual(result, mock_processed_data)  # убеждаемся, что функция вернула ожидаемые обработанные
+#         данные
+# В приведенном выше тесте мы использовали декоратор `patch` для имитации функций `fetch_data_from_api` и
+# `process_data`. Мы также создали фиктивные возвращаемые значения для обеих функций, используя `return_value`.
+# При такой настройке фактические функции `fetch_data_from_api` и `process_data` заменяются фиктивными объектами во
+# время выполнения теста. Затем мы можем утверждать, что эти поддельные функции были вызваны правильно и что функция
+# `get_and_process_data` ведет себя так, как ожидалось. Используя `unittest.mock`, мы можем изолировать наши модульные
+# тесты от внешних зависимостей, делая их более надежными и быстрыми.
+
+#                                            Лучшие практики для мокинга
+
+# Хотя мокинг является мощным инструментом для модульного тестирования, его следует использовать разумно. Чрезмерное
+# использование макетов или написание тестов, тесно связанных с деталями реализации, может привести к хрупким тестам,
+# которые легко ломаются при изменении кода. Поэтому важно следовать лучшим практикам и разрабатывать тестируемый код
+# для достижения надежных и поддерживаемых модульных тестов.
+
+#                                            Исправление внешних функций
+
+# Одним из распространенных вариантов использования mocking в FastAPI является исправление внешних функций, которые
+# взаимодействуют с базами данных или API. Исправляя эти функции, мы можем контролировать их возвращаемые значения
+# или моделировать различные ответы, обеспечивая всесторонний охват тестированием.
+
+#                                               Проверка вызовов функций
+
+# В дополнение к замене внешних зависимостей, мы также можем проверить, что определенные функции или методы вызываются
+# во время модульных тестов. Это полезно для обеспечения того, чтобы определенные действия или запросы выполнялись
+# должным образом в тестируемом коде.
+#
+# Библиотека `unittest.mock` предоставляет `assert_called_once`, `assert_called_with` и другие методы утверждения,
+# которые позволяют вам проверить, была ли вызвана функция или метод с определенными аргументами.
+#
+# Давайте модифицируем предыдущий код для демонстрации, объединив для читаемости external_api.py и app.py:
+#
+# # main.py
+#
+# from fastapi import FastAPI, Depends
+# import requests
+#
+# app = FastAPI()
+#
+# # Внешний API URL (для демонстрации процесса обратимся сами к себе, но тут должен быть реальный)
+# EXTERNAL_API_URL = "https://catfact.ninja/fact"
+#
+#
+# # функция для получения данных из внешнего API
+# def fetch_data_from_api():
+#     response = requests.get(EXTERNAL_API_URL)
+#     if response.status_code == 200:
+#         return response.json()
+#     else:
+#         return None
+#
+#
+# # функция для обработки данных
+# def process_data(data):
+#     # как-то логика обработки данных
+#     new_data = {}
+#     for key, value in data.items():
+#         new_data[key.upper()] = value.upper()
+#     return new_data
+#
+#
+# # роут, который извлекает и обрабатывает данные от внешнего API
+# @app.get("/data/")
+# async def get_and_process_data():
+#     data: dict = fetch_data_from_api()
+#     if data:
+#         return process_data(data)
+#     else:
+#         return {"error": "Failed to fetch data from the external API"}
+# Теперь давайте напишем модульный тест, чтобы убедиться, что функции `fetch_data_from_api` и `process_data`
+# вызываются во время выполнения конечной точки `/data/`:
+#
+# # test_main.py
+#
+# import unittest
+# from fastapi.testclient import TestClient
+# from main import app, fetch_data_from_api, process_data
+# from unittest.mock import patch
+#
+# client = TestClient(app)
+#
+#
+# class TestMain(unittest.TestCase):
+#
+#     @patch("main.fetch_data_from_api")
+#     @patch("main.process_data")
+#     def test_get_and_process_data(self, mock_process_data, mock_fetch_data):
+#         # Имитируем функцию fetch_data_from_api, чтобы вернуть пример ответа
+#         mock_response = {"key": "value"}
+#         mock_fetch_data.return_value = mock_response
+#
+#         # имитируем функцию process_data
+#         mock_processed_data = {"KEY": "VALUE"}
+#         mock_process_data.return_value = mock_processed_data
+#
+#         # отправляем запрос на конечную точку /data/
+#         response = client.get("/data/")
+#
+#         # наши assertions
+#         mock_fetch_data.assert_called_once()  # Убеждаемся, что fetch_data_from_api был вызван один раз
+#         mock_process_data.assert_called_once_with(mock_response)  # убеждаемся, что process_data был вызван
+#         с "mocked response"
+#         self.assertEqual(response.status_code, 200)  # проверяем что status code равен 200
+#         self.assertEqual(response.json(), mock_processed_data)  # проверяем, что данные ответа соответствуют
+#         имитируемым обработанным данным
+# В тесте мы используем декоратор `@patch`, чтобы заменить функции `fetch_data_from_api` и `process_data` фиктивными
+# объектами. Затем мы используем метод `assert_called_once`, чтобы убедиться, что каждая функция вызывается ровно
+# один раз во время выполнения конечной точки `/data/`.
+#
+# Метод `assert_called_once_with` используется для проверки того, что функция `process_data` вызывается с ожидаемым
+# аргументом `mock_response`.
+#
+# Используя эти методы утверждения (assertions), мы можем подтвердить, что желаемые функции вызываются с ожидаемыми
+# аргументами, гарантируя, что код ведет себя так, как задумано во время модульных тестов.
+
+#                                                   ЗАДАЧА
+
+# Для этой задачи программирования вам нужно написать модульные тесты для приложения FastAPI, которое включает в себя
+# имитацию внешних зависимостей.
+#
+# Требования:
+#
+# 1. Настройте приложение FastAPI по крайней мере с двумя конечными точками API, которые взаимодействуют с внешними
+# зависимостями (например, с базой данных или внешним API).
+#
+# 2. Определите внешние функции или API-интерфейсы, которые необходимо имитировать во время модульного тестирования.
+# Создайте план того, какие данные и ответы должны предоставлять эти макеты.
+#
+# 3. Напишите модульные тесты с использованием pytest для конечных точек, которые взаимодействуют с внешними
+# зависимостями. Используйте библиотеку `unittest.mock` для создания макетных объектов (заглушек) и исправления
+# внешних функций.
+#
+# 4. Убедитесь, что модульные тесты охватывают различные сценарии и пограничные случаи, включая случаи, когда внешние
+# функции возвращают неожиданные данные или вызывают исключения.
+#
+# 5. Убедитесь, что тестируемый код корректно взаимодействует с имитируемыми внешними зависимостями и соответствующим
+# образом обрабатывает ответы.
+#
+# 6. Следуйте рекомендациям по модульному тестированию и избегайте чрезмерного использования макетов. Разработайте
+# тестируемый код, чтобы модульные тесты были удобными в обслуживании и надежными.
+#
+# Примечание: Используйте `unittest.mock.patch` или `unittest.mock.patch.object` для исправления внешних зависимостей
+# в ваших модульных тестах. Фреймворк `pytest` и плагин `pytest-asyncio` рекомендуются для написания асинхронных
+# модульных тестов в FastAPI.
+
+#                                                   Вариант 1
+
+# """external_api.py"""
+# import requests
+#
+#
+# EXTERNAL_API_URL = "https://catfact.ninja"
+#
+#
+# def fetch_random_fact() -> dict or None:
+#     response = requests.get(f"{EXTERNAL_API_URL}/fact", timeout=10)
+#     if response.status_code == 200:
+#         return response.json()
+#     return None
+#
+#
+# def process_fact(data) -> str or None:
+#     if data:
+#         return data.get("fact")
+#     return None
+#
+#
+# def fetch_last_page() -> dict or None:
+#     response = requests.get(f"{EXTERNAL_API_URL}/facts", timeout=10)
+#     if response.status_code == 200:
+#         return response.json()
+#     return None
+#
+#
+# def process_last_page(data) -> int or None:
+#     if data:
+#         return {key: val for key, val in data.items() if key in ('last_page')}
+#     return None
+# """main.py"""
+# from fastapi import FastAPI
+# from external_api import (fetch_random_fact, process_fact, fetch_last_page,
+# process_last_page)
+#
+#
+# app = FastAPI()
+#
+#
+# @app.get("/random_fact")
+# async def get_random_fact():
+#     data: dict = fetch_random_fact()
+#     if data:
+#         return {"random_fact": process_fact(data)}
+#     return {"error": "Failed to fetch data from the external API"}
+#
+#
+# @app.get("/last_page")
+# async def get_last_page():
+#     data: dict = fetch_last_page()
+#     if data:
+#         return process_last_page(data)
+#     return {"error": "Failed to fetch data from the external API"}
+# """test_main.py"""
+# import unittest
+# from unittest.mock import patch
+# from fastapi.testclient import TestClient
+# from main import (app, fetch_random_fact, process_fact, fetch_last_page,
+# process_last_page)
+#
+#
+# client = TestClient(app)
+#
+#
+# class TestMain(unittest.TestCase):
+#     @patch("main.fetch_random_fact")
+#     @patch("main.process_fact")
+#     def test_get_and_process_fact(self, mock_process_data, mock_fetch_data):
+#         mock_response = {"fact":"value","length":5}
+#         mock_fetch_data.return_value = mock_response
+#
+#         mock_processed_data = "value"
+#         mock_process_data.return_value = mock_processed_data
+#
+#         response = client.get("/random_fact")
+#
+#         mock_fetch_data.assert_called_once()
+#         mock_process_data.assert_called_once_with(mock_response)
+#         self.assertEqual(response.status_code, 200)
+#         self.assertEqual(response.json(), {"random_fact": "value"})
+#
+#     @patch("main.fetch_last_page")
+#     @patch("main.process_last_page")
+#     def test_get_and_process_last_page(self, mock_process_data, mock_fetch_data):
+#         mock_response = {
+#             "current_page":1,
+#             "data":[{"fact":"value","length":5}],
+#             "first_page_url":"https:\\catfact.ninja\facts?page=1",
+#             "from":1,
+#             "last_page":34,
+#             "last_page_url":"https:\\catfact.ninja\facts?page=34",
+#             "links":[],
+#             "next_page_url":"https:\\catfact.ninja\facts?page=2",
+#             "path":"https:\\catfact.ninja\facts",
+#             "per_page":10,
+#             "prev_page_url": None,
+#             "to":10,
+#             "total":332
+#         }
+#         mock_fetch_data.return_value = mock_response
+#
+#         mock_processed_data = {"last_page":34}
+#         mock_process_data.return_value = mock_processed_data
+#
+#         response = client.get("/last_page")
+#
+#         mock_fetch_data.assert_called_once()
+#         mock_process_data.assert_called_once_with(mock_response)
+#         self.assertEqual(response.status_code, 200)
+#         self.assertEqual(response.json(), mock_processed_data)
+

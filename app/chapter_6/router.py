@@ -580,3 +580,435 @@ router = APIRouter(
 #         raise HTTPException(detail='User too old', status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 #     return user
 
+
+#                                                  6.3
+
+#                                               Дополнительные возможности
+
+# Как вы поняли, настраиваемые ответы на ошибки играют важную роль в улучшении пользовательского интерфейса вашего
+# приложения FastAPI. В то время как FastAPI предоставляет ответы на ошибки по умолчанию, создание пользовательских
+# сообщений об ошибках позволяет предоставлять более удобную для пользователя и информативную обратную связь при
+# возникновении исключений. В данном уроке мы пробежимся по некоторым дополнительным возможностям в работе с ошибками,
+# чтобы вы при необходимости могли их отдельно изучить.
+
+#                                               Объединение возможностей
+
+# Комбинируя пользовательские классы исключений с пользовательскими моделями реагирования на ошибки, вы можете точно
+# контролировать содержимое ответов об ошибках для различных типов исключений. Такой подход гарантирует, что сообщения
+# об ошибках будут точными и непротиворечивыми.
+
+#                                   Интернационализация (i18n) для сообщений об ошибках
+
+# В FastAPI можно добавить интернационализацию (i18n), позволяющую доставлять сообщения об ошибках на нескольких
+# языках в зависимости от языкового стандарта пользователя, что является хорошей практикой во взаимодействии с
+# пользователями.
+#
+# Прочитайте, к примеру, про библиотеку fastapi_localization.
+
+#                                      Коды ответов на запросы и ошибки, метаданные
+
+# Пользовательские ответы об ошибках должны включать соответствующие коды состояния HTTP, указывающие на характер
+# ошибки. Кроме того, вы можете включать метаданные в ответы об ошибках, такие как например временные метки, чтобы
+# помочь в устранении неполадок и анализе ошибок.
+#
+# Кратко о значениях кодов:
+#
+# 1XX – статус-коды информационного типа. Они редко используются разработчиками напрямую. Ответы с этими кодами не
+# могут иметь тела.
+# 2XX – статус-коды, сообщающие об успешной обработке запроса. Они используются чаще всего.
+# 3XX – статус-коды, сообщающие о перенаправлениях. Ответы с этими кодами статуса могут иметь или не иметь тело, за
+# исключением ответов со статусом 304, "Not Modified", у которых не должно быть тела.
+# 4XX – статус-коды, сообщающие о клиентской ошибке. Это ещё одна наиболее часто используемая категория.
+# 5XX – статус-коды, сообщающие о серверной ошибке. Они почти никогда не используются разработчиками напрямую. Когда
+# что-то идет не так в какой-то части кода вашего приложения или на сервере, он автоматически вернёт один из 5XX кодов.
+# Продвинутый пример. Представьте, что вы хотите вернуть стандартный HTTP статус код "OK" 200.
+#
+# Но если данных ранее не существовало, то вернуть HTTP статус код "CREATED" 201.
+#
+# При этом вам все ещё необходимо иметь возможность фильтровать и конвертировать данные, которые вы возвращаете при
+# помощи response_model.
+#
+# Для этого вы можете использовать Response параметр:
+#
+# from fastapi import FastAPI, Response, status
+# app = FastAPI()
+#
+# tasks = {"foo": "Listen to the Bar Fighters"}
+#
+#
+# @app.put("/get-or-create-task/{task_id}", status_code=200)
+# def get_or_create_task(task_id: str, response: Response):
+#     if task_id not in tasks:
+#         tasks[task_id] = "This didn't exist before"
+#         response.status_code = status.HTTP_201_CREATED
+#     return tasks[task_id]
+# И потом вы можете вернуть любой объект, который вам нужно (словарь, database model, и тд.). При этом ваша
+# response_model будет иметь возможность фильтровать и конвертировать данные как обычно.
+
+#                          Добавление кастомных заголовков при расширении информации об ошибках
+
+# Вы можете добавить кастомные (пользовательские) заголовки в вашем FastAPI приложении. Это может потребоваться,
+# например, для некоторых типов обеспечения безопасности.
+#
+# Этого можно добиться, например, так:
+#
+# from fastapi import FastAPI, HTTPException
+#
+# app = FastAPI()
+#
+# items = {"foo": "The Foo Wrestlers"}
+#
+#
+# @app.get("/items-header/{item_id}")
+# async def read_item_header(item_id: str):
+#     if item_id not in items:
+#         raise HTTPException(
+#             status_code=404,
+#             detail="Item not found",
+#             headers={"X-Error": "There goes my error"},
+#         )
+#     return {"item": items[item_id]}
+# В данном примере мы расширили класс HTTPException, добавив заголовок "X-Error".
+
+#                               Переопределение исключений проверки (валидации) запроса
+
+# Когда запрос содержит недопустимые данные, Fast API автоматически выдает ошибку проверки запроса.
+#
+# И он также включает в себя обработчик исключений по умолчанию для него.
+#
+# Чтобы переопределить его, импортируйте RequestValidationError и используйте с помощью
+# @app.exception_handler(RequestValidationError) для оформления обработчика исключений.
+#
+# Обработчик исключений получит Request и само исключение. Таким образом можно переопределить (расширить) не только
+# класс HTTPException.
+#
+# from fastapi import FastAPI, HTTPException
+# from fastapi.exceptions import RequestValidationError
+# from fastapi.responses import PlainTextResponse
+# from starlette.exceptions import HTTPException as StarletteHTTPException
+#
+# app = FastAPI()
+#
+#
+# @app.exception_handler(StarletteHTTPException)
+# async def http_exception_handler(request, exc):
+#     return PlainTextResponse(str(exc.detail), status_code=exc.status_code)
+#
+#
+# @app.exception_handler(RequestValidationError)
+# async def validation_exception_handler(request, exc):
+#     return PlainTextResponse(str(exc), status_code=400)
+#
+#
+# @app.get("/items/{item_id}")
+# async def read_item(item_id: int):
+#     if item_id == 3:
+#         raise HTTPException(status_code=418, detail="Nope! I don't like 3.")
+#     return {"item_id": item_id}
+
+#                                 Повторно используйте обработчики исключений FastAPI
+
+# Если вы хотите использовать исключение вместе с теми же обработчиками исключений по умолчанию из Fast API, вы
+# можете импортировать и повторно использовать обработчики исключений по умолчанию из fastapi.exception_handlers:
+#
+# from fastapi import FastAPI, HTTPException
+# from fastapi.exception_handlers import (
+#     http_exception_handler,
+#     request_validation_exception_handler,
+# )
+# from fastapi.exceptions import RequestValidationError
+# from starlette.exceptions import HTTPException as StarletteHTTPException
+#
+# app = FastAPI()
+#
+#
+# @app.exception_handler(StarletteHTTPException)
+# async def custom_http_exception_handler(request, exc):
+#     print(f"OMG! An HTTP error!: {repr(exc)}")
+#     return await http_exception_handler(request, exc)
+#
+#
+# @app.exception_handler(RequestValidationError)
+# async def validation_exception_handler(request, exc):
+#     print(f"OMG! The client sent invalid data!: {exc}")
+#     return await request_validation_exception_handler(request, exc)
+#
+#
+# @app.get("/items/{item_id}")
+# async def read_item(item_id: int):
+#     if item_id == 3:
+#         raise HTTPException(status_code=418, detail="Nope! I don't like 3.")
+#     return {"item_id": item_id}
+
+#                                               Задача на программирование
+
+# Для этой задачи программирования вам необходимо реализовать пользовательские ответы на ошибки в приложении FastAPI,
+# чтобы обеспечить более удобную и информативную обратную связь для пользователей.
+#
+# Требования:
+#
+# 1. Создайте приложение FastAPI по крайней мере с двумя конечными точками, которые выполняют разные задачи (например,
+# одна конечная точка обрабатывает регистрацию пользователя, а другая конечная точка извлекает пользовательские данные).
+#
+# 2. Определите пользовательские модели реагирования на ошибки с помощью Pydantic для распространенных типов ошибок,
+# которые могут возникать в приложении (например, `ErrorResponseModel` с полями для `status_code`, `message` и
+# `error_code`).
+#
+# 3. Реализуйте пользовательские классы исключений для конкретных сценариев (например, `UserNotFoundException`,
+# `InvalidUserDataException`), которые вызывают соответствующие HTTPExceptions с кодами состояния и пользовательскими
+# сообщениями об ошибках.
+#
+# 4. Добавьте пользовательский заголовок "X-ErrorHandleTime", который указывает время, ушедшее на обработку ошибки,
+# интернационализацию ответов на ошибки (второе по желанию).
+#
+# 5. Создайте пользовательские обработчики исключений, используя декоратор `@app.exception_handler`, чтобы
+# перехватывать и обрабатывать пользовательские исключения. Обработчики должны генерировать пользовательские ответы
+# на ошибки, используя определенные модели ответов.
+#
+# 6. Протестируйте пользовательские ответы на ошибки, отправив запросы к конечным точкам с неверными данными или
+# несуществующими ресурсами. Убедитесь, что ответы об ошибках содержат ожидаемые коды состояния, сообщения об ошибках
+# и коды кодов ошибок.
+#
+# Резюме:
+#
+# После выполнения задачи у вас должно быть приложение FastAPI, которое предоставляет пользовательские ответы на
+# ошибки для различных типов исключений. Когда пользователи сталкиваются с ошибками, они должны получать информативные
+# сообщения об ошибках, расширяющие их понимание проблем и улучшающие общий пользовательский опыт.
+
+#                                               Вариант 1
+
+# Модели:
+#
+# class User(BaseModel):
+#     username: str
+#     email: EmailStr
+#     password: constr(min_length=4, max_length=8)
+#
+# class ErrorResponseModel(BaseModel):
+#     detail: str
+#     error_code: str
+#     status_code: int
+#
+# Конечные точки:
+#
+# class UserNotFoundException(HTTPException):
+#     def __init__(self, detail: str, error_code: str, status_code: int = 404):
+#         self.error_code = error_code
+#         super().__init__(detail=detail, status_code=status_code)
+#
+#
+# class InvalidUserDataException(HTTPException):
+#     def __init__(self, detail: str, error_code: str, status_code: int = 400):
+#         self.error_code = error_code
+#         super().__init__(detail=detail, status_code=status_code)
+#
+#
+# field_error_messages = {
+#     "username": "Должна быть строка",
+#     "email": "Неверный формат email",
+#     "password": "Пароль должен быть min 4 символа max 8"
+# }
+#
+# @app.exception_handler(RequestValidationError)
+# async def validation_exception_handler(request: Request, exc: RequestValidationError):
+#     errors = []
+#     for error in exc.errors():
+#         field_name = error["loc"]
+#         field_type = error["type"]
+#         error_msg = field_error_messages.get(field_name, {key: value for key, value in field_error_messages.items() if key in field_name})
+#         errors.append({"message": error_msg, "error_code": field_type})
+#
+#     return JSONResponse(status_code=400, content={"errors": errors})
+#
+#
+# @app.exception_handler(UserNotFoundException)
+# async def not_found_exception_handler(request: Request, exc: ErrorResponseModel):
+#     return JSONResponse(
+#         status_code=exc.status_code,
+#         content={"message": exc.detail, "type_error": exc.error_code}
+#     )
+#
+# @app.exception_handler(InvalidUserDataException)
+# async def invalid_user_exception_handler(request: Request, exc: ErrorResponseModel):
+#     return JSONResponse(
+#         status_code=exc.status_code,
+#         content={"message": exc.detail, "type_error": exc.error_code}
+#     )
+#
+# users_db = {}
+#
+# @app.post("/register")
+# async def create_user(user: User):
+#     if user.username in users_db:
+#         raise InvalidUserDataException(
+#             detail="Имя пользователя уже занято",
+#             error_code="Имя занято",
+#             status_code=400
+#         )
+#     users_db[user.username] = user
+#     return {"message": "User registered successfully"}
+#
+#
+# @app.get("/users")
+# async def get_user(username: str):
+#     if username not in users_db:
+#         raise UserNotFoundException(
+#             detail="Пользователя с таким именем не существует",
+#             error_code="Пользователь не существует",
+#             status_code=404
+#         )
+#     return {"user": users_db[username]}
+#
+#
+# @app.middleware("http")
+# async def add_custom_headers(request, call_next):
+#     start_time = datetime.utcnow()
+#     response = await call_next(request)
+#     end_time = datetime.utcnow()
+#     process_time = (end_time - start_time).microseconds
+#     response.headers["X-ErrorHandleTime"] = str(process_time)
+#     return response
+
+#                                                Вариант 2
+
+# import uvicorn
+#
+# from fastapi import FastAPI, HTTPException, Request, status
+# from fastapi.responses import JSONResponse
+# from pydantic import BaseModel, EmailStr
+# import time
+#
+# app = FastAPI()
+#
+#
+# class User(BaseModel):
+#     name: str
+#     email: EmailStr
+#     password: str
+#
+#
+# class UserModel(BaseModel):
+#     id: int
+#     name: str
+#     email: EmailStr
+#     password: str
+#
+#
+# class UserResponse(BaseModel):
+#     id: int
+#     name: str
+#     email: EmailStr
+#
+#
+# users_db: dict[int, UserModel] = {}
+#
+#
+# def id_generator() -> int:
+#     counter = max(users_db.keys()) if users_db else 0
+#     while True:
+#         counter += 1
+#         yield counter
+#
+#
+# id_gen = id_generator()
+#
+#
+# class ErrorResponseModel(BaseModel):
+#     status_code: int
+#     detail: str
+#     errors: list[str]
+#
+#
+# class UserNotFoundException(HTTPException):
+#     def __init__(self, errors: list[str]):
+#         super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+#         self.errors = errors
+#
+#
+# class InvalidUserDataException(HTTPException):
+#     def __init__(self, errors: list[str]):
+#         super().__init__(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid user data")
+#         self.errors = errors
+#
+#
+# @app.exception_handler(UserNotFoundException)
+# async def user_not_found_exception_handler(request: Request, exc: ErrorResponseModel):
+#     return JSONResponse(
+#         status_code=exc.status_code,
+#         content={"detail": exc.detail, "errors": exc.errors}
+#     )
+#
+#
+# @app.exception_handler(InvalidUserDataException)
+# async def invalid_user_data_exception_handler(request: Request, exc: ErrorResponseModel):
+#     return JSONResponse(
+#         status_code=exc.status_code,
+#         content={"detail": exc.detail, "errors": exc.errors}
+#     )
+#
+#
+# @app.middleware("http")
+# async def additional_processing(request: Request, call_next):
+#     start_time = time.time()
+#     response = await call_next(request)
+#     process_time = time.time() - start_time
+#     if response.status_code // 100 == 4:
+#         response.headers["X-ErrorHandleTime"] = str(process_time)
+#     return response
+#
+#
+# def _check_user(user: User) -> None:
+#     errors: list[str] = []
+#     for db_user in users_db.values():
+#         if user.name == db_user.name:
+#             errors.append("Not unique name")
+#         if user.email == db_user.email:
+#             errors.append("Not unique email")
+#     if len(errors) > 0:
+#         raise InvalidUserDataException(errors)
+#
+#
+# def _get_user_by_id(user_id: int) -> UserModel:
+#     if user_id not in users_db:
+#         errors = [f"User with id={user_id} not found"]
+#         raise UserNotFoundException(errors)
+#     return users_db[user_id]
+#
+#
+# def _get_user_by_email(email: str) -> UserModel:
+#     for db_user in users_db.values():
+#         if email == db_user.email:
+#             return db_user
+#     errors = [f"User with email={email} not found"]
+#     raise UserNotFoundException(errors)
+#
+#
+# def _user_response(db_user: UserModel) -> UserResponse:
+#     user_dict = db_user.model_dump()
+#     del user_dict["password"]
+#     return UserResponse(**user_dict)
+#
+#
+# @app.post("/users/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+# async def create_user(user: User):
+#     _check_user(user)
+#     db_user = UserModel(id=next(id_gen), name=user.name, email=user.email, password=user.password)
+#     users_db[db_user.id] = db_user
+#     return _user_response(db_user)
+#
+#
+# @app.get("/users/{user_id}", response_model=UserResponse)
+# async def read_user_by_id(user_id: int):
+#     db_user = _get_user_by_id(user_id)
+#     return _user_response(db_user)
+#
+#
+# @app.get("/users/by_email/{email}", response_model=UserResponse)
+# async def read_user_by_email(email: str):
+#     db_user = _get_user_by_email(email)
+#     return _user_response(db_user)
+#
+#
+# if __name__ == "__main__":
+#     uvicorn.run(app, host="localhost", port=8000)
+

@@ -24,3 +24,5 @@ app.include_router(router_7)
 # @app.get("/sum/")
 # def calculate_sum(a: int, b: int):
 #     return {"result": a + b}
+
+

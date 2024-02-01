@@ -727,3 +727,519 @@ router = APIRouter(
 #         self.assertEqual(response.status_code, 200)
 #         self.assertEqual(response.json(), mock_processed_data)
 
+#                                                     7.3
+
+#                                         Введение в интеграционное тестирование
+
+# Интеграционное тестирование в FastAPI включает в себя тестирование взаимодействий между различными частями вашего
+# приложения. В отличие от модульных тестов, которые фокусируются на отдельных блоках кода, интеграционные тесты
+# гарантируют, что интегрированные компоненты работают вместе должным образом. Интеграционные тесты помогают выявить
+# проблемы, которые могут возникнуть при взаимодействии нескольких компонентов, такие как проблемы с зависимостями,
+# подключениями к базе данных или интеграцией API.
+
+#                                     Использование TestClient для интеграционных тесто
+
+# FastAPI предоставляет класс `TestClient` из модуля `fastapi.testclient`, который является ценным инструментом для
+# запуска интеграционных тестов. "TestClient" позволяет вам выполнять реальные HTTP-запросы к вашему приложению
+# FastAPI во время тестирования, имитируя реальные сценарии.
+#
+# Что также немаловажно, TestClient позволяет тестировать приложение FastAPI без его запуска, имитируя реальные
+# запросы (без запуска uvicorn'а).
+#
+# Для асинхронных тестов можно использовать AsyncClient из модуля httpx.
+
+#                                              Подготовка тестовой среды
+
+# Перед запуском интеграционных тестов с помощью `TestClient` крайне важно настроить тестовую среду, которая очень
+# похожа на производственную, но с контролируемыми данными. Это может включать в себя создание тестовой базы данных,
+# заполнение ее тестовыми данными и настройку любых необходимых зависимостей.
+
+#                                       Тестирование конечных точек и маршрутов
+
+# нтеграционные тесты с "TestClient" позволяют вам тестировать конечные точки API вашего приложения и маршруты
+# точно так же, как это сделал бы реальный пользователь или внешняя служба. Отправляя HTTP-запросы и получая ответы,
+# вы можете убедиться, что ваш API ведет себя корректно в различных условиях.
+#
+# Вот пример того, как вы можете выполнить интеграционное тестирование с помощью `TestClient`.
+#
+# Предположим, у вас есть приложение FastAPI со следующим кодом:
+#
+# # main.py
+#
+# from fastapi import FastAPI
+#
+# app = FastAPI()
+#
+# @app.get("/items/{item_id}")
+# def read_item(item_id: int):
+#     return {"item_id": item_id}
+# Теперь давайте напишем интеграционный тест, используя `TestClient`, чтобы протестировать конечную
+# точку `/items/{item_id}`:
+#
+# # test_main.py
+#
+# from fastapi.testclient import TestClient
+# from main import app
+#
+# client = TestClient(app)
+#
+# def test_read_item():
+#     # Отправляем запрос на конечную точку /items/{item_id} с item_id=1
+#     response = client.get("/items/1")
+#
+#     # Assertions
+#     assert response.status_code == 200
+#     assert response.json() == {"item_id": 1}
+#
+#     # Отправляем запрос на конечную точку /items/{item_id} с item_id=z (неправильный тип данных)
+#     response = client.get("/items/z")
+#
+#     # Assertions
+#     assert response.status_code == 200  # Это завершится ошибкой, поскольку конечная точка не обработает наш
+#     тип данных
+#     assert response.json() == {"item_id": "z"}  # это тоже завершится ошибкой по той же причине
+# В этом примере мы сначала импортируем `TestClient` и наше приложение FastAPI из `main.py`. Затем мы создаем объект
+# `TestClient` с помощью нашего приложения FastAPI.
+#
+# Функция `test_read_item` выполняет два тестовых примера:
+#
+# Он отправляет запрос GET в `/items/1` и проверяет, что код состояния ответа равен 200, а ответ в формате JSON
+# соответствует ожидаемому результату `{"item_id": 1}`.
+# Он отправляет запрос GET на `/items/z` (неправильный item_id) и вызывает ошибочный assertion, что код статуса
+# ответа равен 200, а ответ в формате JSON равен `{"item_id": "z"}`. Этот тест завершится неудачей.
+# Или расширенный пример интеграционного теста, но тоже упрощенный.
+#
+# Для примера есть приложение:
+#
+# # main.py
+# from fastapi import FastAPI, HTTPException, Request, Response
+# from pydantic import BaseModel
+#
+#
+# app = FastAPI()
+#
+# # псевдо-бд
+# fake_users_db = [
+#     {
+#         "user_id": 1,
+#         "username": "user123",
+#         "password": "secretpassword",
+#         "email": "user@example.com"
+#     }
+# ]
+#
+# # имитируем хранилище сессий
+# sessions = {}
+#
+#
+# # модельки
+# class UserCredentials(BaseModel):
+#     username: str
+#     password: str
+#
+# class UserData(BaseModel):
+#     user_id: int
+#     username: str
+#     email: str
+#
+#
+# # роуты
+# @app.post("/login/") # проверяем наличие юзера и возвращаем куки
+# def login(user_creds: UserCredentials, response: Response):
+#     for user in fake_users_db:
+#         if user["username"] == user_creds.username and user["password"] == user_creds.password:
+#             response.set_cookie(key="session_cookie", value="my_random_cookie")
+#             sessions[user_creds.username] = "my_random_cookie" # это чисто для демонстрации, если 5 юзеров зайдут,
+#             то всем не нужно одинаковые куки ставить
+#             return {"message": "Login successful"}
+#     else:
+#         raise HTTPException(status_code=401, detail="Invalid credentials")
+#
+#
+# @app.get("/protected_data/", response_model=UserData) # возвращаем данные по кукам, если они валидны
+# def protected_data(request: Request):
+#     for username, cookie in sessions.items():
+#         if request.cookies.get("session_cookie") and cookie == request.cookies.get("session_cookie"):
+#             user = get_user_by_username(username)
+#             return UserData(**user)
+#     raise HTTPException(status_code=401, detail="Bad cookie")
+#
+#
+# def get_user_by_username(username: str): # вспомогательная функция по извлечению юзера из БД
+#     for user in fake_users_db:
+#         if user.get("username") == username:
+#             return user
+#     else:
+#         raise HTTPException(status_code=404, detail="User not found")
+# Тогда интеграционный тест мог бы быть таким:
+#
+# # test_app.py
+# from fastapi.testclient import TestClient
+# from main import app # тут замените импорт на правильное расположение файла
+#
+#
+# client = TestClient(app)
+#
+# def test_login_and_access_data():
+#     # тестируем точку логина, направляя учетные данные и получая куки
+#     login_data = {
+#         "username": "user123",
+#         "password": "secretpassword"
+#     }
+#     response = client.post("/login/", json=login_data)
+#     assert response.status_code == 200
+#     assert "set-cookie" in response.headers
+#
+#     # извлекаем куки из ответа
+#     cookies = response.cookies
+#     cookie_value = cookies["session_cookie"]
+#
+#     # проверяем доступ к получению информации через полученные куки
+#     headers = {
+#         "Cookie": f"session_cookie= {cookie_value}"
+#     }
+#     response = client.get("/protected_data/", headers=headers)
+#     assert response.status_code == 200
+#     data = response.json()
+#     assert "user_id" in data
+#     assert "username" in data
+#     assert "email" in data
+#
+# Мы, конечно, можем быть более тщательными, проверять разное поведение юзеров (в т.ч. неблагонадежное). Тут мы не
+# проверяем подмену данных, крайние значения и прочее. Но главное понять идею - что мы можем имитировать действия
+# пользователя (что он послал, что ему пришло, какой ответ дала база данных, записались ли значения, и прочее и прочее)
+# . То есть отличие интеграционного теста от модульного в том, что при интеграционном тестировании мы проверяем, как
+# приложение работает в совокупности.
+#
+# Интеграционное тестирование с помощью "TestClient" позволяет вам проверить поведение всего вашего приложения
+# FastAPI, включая его маршруты и взаимодействия с внешними зависимостями, в тестовой среде. Это гарантирует, что
+# конечные точки реагируют должным образом, и помогает вам выявить любые потенциальные проблемы в вашем приложении.
+
+#                                       Тестирование аутентификации и авторизации
+
+# Интеграционные тесты также полезны для тестирования механизмов аутентификации и авторизации в вашем приложении
+# FastAPI. Вы можете смоделировать сценарии, в которых пользователи или службы имеют разные роли и разрешения,
+# чтобы обеспечить надлежащий контроль доступа.
+
+#                                       Целостность данных и тестирование базы данных
+
+# Для приложений с интеграцией баз данных интеграционные тесты могут проверять целостность данных и тестировать
+# различные операции CRUD. Вы можете создавать тестовые данные, выполнять операции с базой данных и проверять
+# правильность извлечения и обновления данных.
+
+#                                       Тестирование непрерывной интеграции (CI)
+
+# Интеграционные тесты часто включаются в процесс непрерывной интеграции (CI). Тестирование CI включает в себя запуск
+# автоматических тестов всякий раз, когда изменения передаются в репозиторий кода. Такая практика помогает выявлять
+# проблемы на ранней стадии и гарантирует, что изменения не нарушат существующие функциональные возможности.
+
+#                                         Управление тестовыми базами данных
+
+# Для поддержания изоляции и контроля во время интеграционных тестов обычно используется отдельная тестовая база
+# данных. Вы можете настроить свое приложение так, чтобы оно использовало тестовую базу данных во время тестирования,
+# и сбрасывать ее перед каждым тестом, чтобы обеспечить чистый лист для каждого тестового примера.
+
+#                                                   ЗАДАЧА
+
+# Для этой задачи программирования вам нужно написать интеграционные тесты, используя "TestClient" для приложения
+# FastAPI с интеграцией с базой данных.
+#
+# Требования:
+#
+# 1. Настройте приложение FastAPI с интеграцией с базой данных (например, SQLite, PostgreSQL или MySQL).
+#
+# 2. Подготовьте тестовую среду, создав отдельную тестовую базу данных. Настройте свое приложение так, чтобы оно
+# использовало эту тестовую базу данных во время интеграционного тестирования.
+#
+# 3. Внедрите по крайней мере три конечные точки API с различными функциональными возможностями, такими как
+# регистрация пользователей, извлечение данных и обновление данных.
+#
+# 4. Напишите интеграционные тесты, используя pytest и `TestClient` для тестирования конечных точек API. Убедитесь,
+# что тесты охватывают различные сценарии, включая положительные случаи и сценарии потенциальных ошибок.
+#
+# 5. Протестируйте поведение конечной точки в различных условиях, таких как отправка неверных данных, проверки
+# подлинности и авторизации, а также пограничные случаи.
+#
+# 6. Убедитесь, что интеграционные тесты корректно взаимодействуют с приложением и базой данных, выполняя операции
+# CRUD должным образом.
+#
+# 7. Включите по крайней мере один тест, который проверяет поведение механизмов аутентификации и авторизации в вашем
+# приложении.
+#
+# Примечание: Для выполнения этой задачи вы можете использовать подходящий компонент database engine, такой как SQLite
+# или PostgreSQL, для вашей тестовой среды. Не забудьте сбросить тестовую базу данных перед каждым тестированием,
+# чтобы обеспечить "чистый лист" для каждого тестового примера.
+
+#                                                   ВАРИАНТ 1
+
+# main.py:
+#
+# from fastapi import FastAPI
+# from app.auth import router as router_login
+# from app.crud_basa import router as router_crud
+#
+#
+# app = FastAPI()
+#
+# app.include_router(router_login)
+# app.include_router(router_crud)
+# auth.py:
+#
+# from fastapi import APIRouter, Depends, HTTPException
+# from fastapi.security import HTTPBasic, HTTPBasicCredentials
+#
+# from app.models.schemas import User
+# from app.dao import UsersDAO
+#
+#
+# router = APIRouter(
+#     prefix="/auth",
+#     tags=["Auth & Reg"]
+# )
+#
+# security = HTTPBasic()
+#
+#
+# async def authenticate_user(credentials: HTTPBasicCredentials = Depends(security)):
+#     user = await UsersDAO.get_user(name=credentials.username)
+#     if not user:
+#         raise HTTPException(status_code=404, detail="Not Found")
+#     return user
+#
+#
+# @router.post("/login")
+# async def login_user(user: User = Depends(authenticate_user)):
+#     return user
+#
+#
+# @router.post("/reg")
+# async def reg_user(user_data: User):
+#     user = await UsersDAO.get_user(name=user_data.name)
+#     if user:
+#         raise HTTPException(status_code=409)
+#     await UsersDAO.add_user(user_data.name, user_data.email)
+# crud_basa.py:
+#
+# from fastapi import APIRouter, HTTPException, Depends
+# from app.dao import ProductDAO
+# from app.auth import authenticate_user
+# from app.models.schemas import Product, User
+#
+#
+# router = APIRouter(
+#     prefix="/access",
+#     tags=["database"]
+# )
+#
+#
+# @router.get("/get_product")
+# async def get_product(name: str, user: User = Depends(authenticate_user)) -> list[Product]:
+#     product = await ProductDAO.get_product(name=name)
+#     if not product:
+#         raise HTTPException(status_code=404)
+#     return product
+#
+#
+# @router.post("/add_product")
+# async def add_product(product: Product, user: User = Depends(authenticate_user)):
+#     await ProductDAO.add_product(name=product.name, price=product.price)
+#     return {"message": "Done!"}
+#
+#
+# @router.put("/change_product")
+# async def change_product(name: str, price: float, user: User = Depends(authenticate_user)):
+#     await ProductDAO.update_product(name=name, price=price)
+#     return {"message": "Done!"}
+#
+#
+# @router.delete("/delete_product")
+# async def delete_product(name: str, user: User = Depends(authenticate_user)):
+#     await ProductDAO.delete_product(name=name)
+#     return {"message": "Done!"}
+# dao.py:
+#
+# from sqlalchemy import select, insert, delete, update
+# from app.config import settings
+# from app.database import async_session_maker
+# from app.models_sql import Users, Product, TestUser, TestProduct
+#
+#
+# class UsersDAO:
+#     model = Users if settings.MODE == "DEV" else TestUser
+#
+#     @classmethod
+#     async def get_user(cls, **filter_data):
+#         print(cls.model)
+#         async with async_session_maker() as session:
+#             query = select("*").select_from(cls.model).filter_by(**filter_data)
+#             result = await session.execute(query)
+#             return result.mappings().one_or_none()
+#
+#     @classmethod
+#     async def add_user(cls, name, email):
+#         async with async_session_maker() as session:
+#             query = insert(cls.model).values(name=name, email=email)
+#             await session.execute(query)
+#             await session.commit()
+#
+#
+# class ProductDAO:
+#     model = Product if settings.MODE == "DEV" else TestProduct
+#
+#     @classmethod
+#     async def add_product(cls, name, price):
+#         async with async_session_maker() as session:
+#             query = insert(cls.model).values(name=name, price=price)
+#             await session.execute(query)
+#             await session.commit()
+#
+#     @classmethod
+#     async def get_product(cls, **filter_data):
+#         async with async_session_maker() as session:
+#             query = select("*").select_from(cls.model).filter_by(**filter_data)
+#             results = await session.execute(query)
+#             return results.mappings().all()
+#
+#     @classmethod
+#     async def update_product(cls, name, price):
+#         async with async_session_maker() as session:
+#             query = update(cls.model).where(name == cls.model.name).values(price=price)
+#             await session.execute(query)
+#             await session.commit()
+#
+#     @classmethod
+#     async def delete_product(cls, **filter_data):
+#         async with async_session_maker() as session:
+#             query = delete(cls.model).filter_by(**filter_data)
+#             await session.execute(query)
+#             await session.commit()
+# database.py:
+#
+# from sqlalchemy import NullPool
+# from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+# from sqlalchemy.orm import DeclarativeBase, sessionmaker
+# from app.config import settings
+#
+# if settings.MODE == "TEST":
+#     DATABASE_URL = settings.TEST_DABASE_URL
+#     DATABASE_PARAMS = {"poolclass": NullPool}
+# else:
+#     DATABASE_URL = settings.DATABASE_URL
+#     DATABASE_PARAMS = {}
+#
+# engine = create_async_engine(DATABASE_URL, **DATABASE_PARAMS)
+#
+# async_session_maker = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+#
+# class Base(DeclarativeBase):
+#     pass
+# conftest.py:
+#
+# import os
+#
+# os.environ["MODE"] = "TEST"
+# config.py:
+#
+# from typing import Literal
+# from pydantic_settings import BaseSettings
+# from dotenv import find_dotenv, load_dotenv
+#
+# load_dotenv(find_dotenv(".env"))
+#
+# class Settings(BaseSettings):
+#     MODE: Literal["DEV", "TEST"]
+#
+#     DB_HOST: str
+#     DB_PORT: int
+#     DB_USER: str
+#     DB_PASS: str
+#     DB_NAME: str
+#
+#     TEST_DB_HOST: str
+#     TEST_DB_PORT: int
+#     TEST_DB_USER: str
+#     TEST_DB_PASS: str
+#     TEST_DB_NAME: str
+#
+#     @property
+#     def DATABASE_URL(self):
+#         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+#
+#     @property
+#     def TEST_DABASE_URL(self):
+#         return f"postgresql+asyncpg://{self.TEST_DB_USER}:{self.TEST_DB_PASS}@{self.TEST_DB_HOST}:{self.TEST_DB_PORT}/{self.TEST_DB_NAME}"
+#
+#
+#     class ConfigDict:
+#         env_file = ".env"
+#
+#
+# settings = Settings()
+# test_app.py:
+#
+# import json
+# from fastapi.testclient import TestClient
+# from app.main import app
+#
+#
+# client = TestClient(app)
+#
+#
+# class TestMain:
+#
+#     def test_auth_user(self):
+#         test_user_data = {"name": "Itoshi Rin", "email": "rin1109@gmail.com"}
+#
+#         response = client.post("/auth/login", auth=(test_user_data["name"], test_user_data["email"]))
+#
+#         assert response.status_code == 200
+#
+#
+#     def test_reg_user(self):
+#         test_data = {"name": "Nagi Seishiro", "email": "nagi256@gmail.com"}
+#
+#         response = client.post("/auth/reg", content=json.dumps(test_data))
+#
+#         assert response.status_code == 409
+#
+#
+#     def test_add_product(self):
+#         test_user_data = {"name": "Itoshi Rin", "email": "rin1109@gmail.com"}
+#         test_product = {"name": "Coca-Cola", "price": 28.99}
+#
+#         response = client.post("/access/add_product", content=json.dumps(test_product), auth=(test_user_data["name"], test_user_data["email"]))
+#
+#         assert response.status_code == 200
+#
+#     def test_get_product(self):
+#         test_user_data = {"name": "Itoshi Rin", "email": "rin1109@gmail.com"}
+#         response = client.get("/access/get_product?name=Coca-Cola", auth=(test_user_data["name"], test_user_data["email"]))
+#
+#         assert response.status_code == 200
+#
+#     def test_update_product(self):
+#         test_user_data = {"name": "Itoshi Rin", "email": "rin1109@gmail.com"}
+#         response = client.put("/access/change_product?name=Coca-Cola&price=34.6", auth=(test_user_data["name"], test_user_data["email"]))
+#
+#         assert response.status_code == 200
+#
+#     def test_delete_product(self):
+#         test_user_data = {"name": "Itoshi Rin", "email": "rin1109@gmail.com"}
+#         response = client.delete("/access/delete_product?name=Coca-Cola", auth=(test_user_data["name"], test_user_data["email"]))
+#
+#         assert response.status_code == 200
+# .env:
+#
+# MODE="DEV"
+#
+# DB_HOST=*****
+# DB_PORT=*****
+# DB_USER=*****
+# DB_PASS=*****
+# DB_NAME=*****
+#
+# TEST_DB_HOST=*****
+# TEST_DB_PORT=*****
+# TEST_DB_USER=*****
+# TEST_DB_PASS=*****
+# TEST_DB_NAME=*****
